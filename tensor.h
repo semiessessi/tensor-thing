@@ -13,6 +13,7 @@
 
 template <int d> class Vector;
 template <int d> class Function;
+template <int d> class TensorReference;
 template <int d> class TensorField;
 
 /*
@@ -42,6 +43,8 @@ public:
 	{
 		for(unsigned int i = 0; i < d; ++i) C[i] = D;
 	}
+	
+	~Vector<d>() {}
 
 	double& operator [](unsigned int i)
 	{
@@ -173,7 +176,16 @@ private:
 public:
 	Function<d>() : C(0.0), VF(vfNull), F(fConstant), Child1(0), Child2(0), Composition(cNull), CompositionParameter(0) {}
 	Function<d>(const double& d) : C(d), VF(vfNull), F(fConstant), Child1(0), Child2(0), Composition(cNull), CompositionParameter(0) {}
-	Function<d>(double (*f)(Vector<d> Parameter)) : C(0.0), VF(f), F(fFunction), Child1(0), Child2(0), Composition(cNull), CompositionParameter(0) {}
+	Function<d>(double (*f)(Vector<d> Parameter)) : C(0.0), F(fFunction), Child1(0), Child2(0), Composition(cNull), CompositionParameter(0)
+	{
+		VF = f;
+		if(VF == Vector<d>::T) VF = Vector<d>::X0;
+		if(VF == Vector<d>::X) VF = Vector<d>::X1;
+		if(VF == Vector<d>::Y) VF = Vector<d>::X2;
+		if(VF == Vector<d>::Z) VF = Vector<d>::X3;
+		if(VF == Vector<d>::W) VF = Vector<d>::X4;
+	}
+	
 	Function<d>(const Function<d>& f) : C(f.C), VF(f.VF), F(f.F), Composition(f.Composition), CompositionParameter(f.CompositionParameter)
 	{
 		if(f.Child1) Child1 = new Function<d>(*(f.Child1));
@@ -181,10 +193,16 @@ public:
 		if(f.Child2) Child2 = new Function<d>(*(f.Child2));
 		else Child2 = 0;
 	}
+	
 	Function<d>(const Function<d>& F1, const Function<d>& F2, double (Function<d>::*c)(Vector<d> Parameter), int i = 0) : C(0), VF(vfNull), F(fComposition), Composition(c), CompositionParameter(i)
 	{
 		Child1 = new Function<d>(F1);
 		Child2 = new Function<d>(F2);
+	}
+	
+	Function<d>(const TensorReference<d>& R)
+	{
+		*this = R.GetFunction();
 	}
 
 	~Function<d>()
@@ -208,6 +226,11 @@ public:
 	double operator ()(Vector<d> Parameter)
 	{
 		return F(Parameter);
+	}
+	
+	Function<d> operator -()
+	{
+		return 0.0 - *this;
 	}
 
 	Function<d>& operator +=(const Function<d> &X)
@@ -246,7 +269,7 @@ public:
 			// Xa + X = (a+1)X
 			if(Composition == cMul)
 			{
-				if((Child1->F == fConstant) && (Child2->F == X.fFunction) && (Child2->VF == X.VF))
+				if((Child1->F == fConstant) && (Child2->F == fFunction) && (Child2->VF == X.VF))
 				{
 					return (Child1->C + 1) * *(Child2);
 				}
@@ -505,6 +528,12 @@ public:
 	}
 	Function<d> Derivative(double (*wrt)(Vector<d> Parameter)) const
 	{
+		if(wrt == Vector<d>::T) wrt = Vector<d>::X0;
+		if(wrt == Vector<d>::X) wrt = Vector<d>::X1;
+		if(wrt == Vector<d>::Y) wrt = Vector<d>::X2;
+		if(wrt == Vector<d>::Z) wrt = Vector<d>::X3;
+		if(wrt == Vector<d>::W) wrt = Vector<d>::X4;
+		
 		if(F == fConstant)
 		{
 			return 0.0;
@@ -666,6 +695,95 @@ public:
 */
 
 template <int d = 4>
+class TensorReference
+{
+private:
+	TensorField<d>*		Parent;
+	unsigned int		D;
+	unsigned int*		C;
+public:
+	TensorReference<d>() : Parent(0), D(0), C(0) {}
+	
+	TensorReference<d>(TensorField<d>* P, unsigned int numDims, unsigned int* components) : Parent(P), D(numDims)
+	{
+		C = new unsigned int[D];
+		for(unsigned int i = 0; i < D; ++i) C[i] = components[i];
+	}
+	
+	TensorReference<d>(TensorReference<d>& T) : Parent(T.Parent), D(T.D)
+	{
+		C = new unsigned int[D];
+		for(unsigned int i = 0; i < D; ++i) C[i] = T.C[i];
+	}
+	
+	~TensorReference<d>()
+	{
+		if(C) delete[] C;
+	}
+	
+	TensorReference<d>& operator =(const TensorReference<d>& T)
+	{
+		Parent = T.Parent;
+		D = T.D;
+		C = new unsigned int[D];
+		for(unsigned int i = 0; i < D; ++i) C[i] = T.C[i];
+		return *this;
+	}
+	
+	TensorReference<d>& operator =(const Function<d>& F)
+	{
+		debuggy;
+		printf("%X %u %u", Parent, Parent->GetRank(), D);
+		GetFunction() = F;
+		debuggy;
+		return *this;
+	}
+	
+	TensorReference<d> operator [](unsigned int i)
+	{
+		if(D < Parent->GetRank())
+        {
+            // create array of indices
+            unsigned int* p = new unsigned int[D + 1];
+            
+            // copy from old array and add i to the end
+            for(int j = 0; j < D; ++j) p[j] = C[j];
+            p[D] = i;
+            
+            // create return reference and delete array of indices
+            TensorReference<d> ret = TensorReference<d>(Parent, D + 1, p);
+            delete[] p;
+            
+            return ret;
+        }
+        // extra references should do nothing
+        else
+        {
+            return (*this);
+        }
+	}
+	
+	Function<d>* operator ->()
+	{
+		return &(GetFunction());
+	}
+	
+	Function<d>& GetFunction()
+	{
+		if(Parent->GetRank() == D)
+		{
+			debuggy;
+			return Parent->FunctionFromIndices(C);
+		}
+		else
+		{
+			debuggy;
+			return Parent->FirstEntry();
+		}
+	}
+};
+
+template <int d = 4>
 class TensorField
 {
 protected:
@@ -696,6 +814,7 @@ public:
 				}
 			}
 		}
+		else ContravariantIndices = 0;
 
 		Size = 1;
         for(unsigned int i = 0; i < Rank; ++i) Size *= d;
@@ -704,6 +823,7 @@ public:
 		for(unsigned int i = 0; i < Size; ++i) Components[i] = new Function<d>(defaultValue);
 	}
 
+	/*
 	TensorField<d>(const double& d)
 	{
 		CovariantRank = 0;
@@ -714,6 +834,7 @@ public:
 		Components[0] = new Function<d>(d);
 		ContravariantIndices = 0;
 	}
+	*/
 
 	TensorField<d>(TensorField& t)
 	{
@@ -778,6 +899,158 @@ public:
 			ret.Components[i] -= t.Components[i];
 
 		return ret;
+	}
+	
+	TensorField<d> operator ,(NewIndex _haxpile)
+	{
+		bool* b = new bool[Rank + 1];
+		if(ContravariantIndices)
+		{
+			for(unsigned int i = 0; i < Rank; ++i) b[i] = ContravariantIndices[i];
+		}
+		else
+		{
+			for(unsigned int i = 0; i < Rank; ++i) b[i] = false;
+		}
+		b[Rank] = false;
+		TensorField<d> ret = TensorField<d>(Rank + 1, b, 0.0);
+		unsigned int Indices[d] = {0};
+		for(unsigned int i = 0; i < d; ++i) Indices[i] = 0;
+		while(Indices[0] < Rank)
+		{
+			printf("Comma derivative:\r\nRank, Dimension: %d, %d\r\nIndices: ", Rank, d);
+			for(unsigned int k = 0; k < Rank; ++k) printf("%d ", Indices[k]);
+			printf("\r\n");
+			
+			for(unsigned int i = 0; i < d; ++i)
+			{
+				double (*f)(Vector<d>);
+				switch(i)
+				{
+					default:
+					case 0:
+						f = Vector<d>::X0;
+						break;
+					case 1:
+						f = Vector<d>::X1;
+						break;
+					case 2:
+						f = Vector<d>::X2;
+						break;
+					case 3:
+						f = Vector<d>::X3;
+						break;
+					case 4:
+						f = Vector<d>::X4;
+						break;
+					case 5:
+						f = Vector<d>::X5;
+						break;
+					case 6:
+						f = Vector<d>::X6;
+						break;
+					case 7:
+						f = Vector<d>::X7;
+						break;
+					case 8:
+						f = Vector<d>::X8;
+						break;
+					case 9:
+						f = Vector<d>::X9;
+						break;
+				}
+				debuggy;
+				ret.ReferenceFromIndices(Indices, Rank)[i] = FunctionFromIndices(Indices).Derivative(f);
+				debuggy;
+			}
+			
+			++Indices[Rank-1];
+			
+			printf("Comma derivative:\r\nRank, Dimension: %d, %d\r\nIndices: ", Rank, d);
+			for(unsigned int k = 0; k < Rank; ++k) printf("%d ", Indices[k]);
+			printf("\r\n");
+			
+			for(unsigned int i = Rank - 1; i >= 0; --i)
+			{
+				if(Indices[i] >= d)
+				{
+					Indices[i] = 0;
+					if(i > 0) ++Indices[i - 1];
+				}
+			}
+		}
+		
+		return ret;
+	}
+	
+	TensorReference<d> operator [](unsigned int i)
+	{
+		unsigned int* p = new unsigned int;
+        *p = i;
+        TensorReference<d> ret = TensorReference<d>(this, 1, p);
+        delete p;
+        return ret;
+	}
+	
+	unsigned int GetRank() { return Rank; }
+	
+	Function<d>& FirstEntry()
+	{
+		return *(Components[0]);
+	}
+	
+	TensorReference<d> ReferenceFromIndices(unsigned int* P, unsigned int D)
+    {
+		return TensorReference<d>(this, D, P);
+    }
+	
+	Function<d>& FunctionFromIndices(unsigned int* P)
+    {
+        int j = 0;
+        int k = 1;
+        for(int i = 0; i < Rank; ++i)
+        {
+            j += k*P[i];
+            k *= d;
+        }
+		printf("Function from indices, index: %d\r\n", j);
+        return *(Components[j]);
+    }
+	
+	void DebugPrint(bool txyz = false)
+	{
+		if(Rank == 0)
+		{
+			(*(Components[0])).DebugPrint(txyz);
+		}
+		else if(Rank == 1)
+		{
+			printf("(");
+			for(unsigned int i = 0; i < d - 1; ++i)
+			{
+				(*(Components[i])).DebugPrint(txyz);
+				printf(", ");
+			}
+			(*(Components[d-1])).DebugPrint(txyz);
+			printf(")");
+		}
+		else if(Rank == 2)
+		{
+			printf("[");
+			for(unsigned int j = 0; j < d; ++j)
+			{
+				printf("(");
+				for(unsigned int i = 0; i < d - 1; ++i)
+				{
+					(*this)[i][j]->DebugPrint(txyz);
+					printf(", ");
+				}
+				(*this)[d-1][j]->DebugPrint(txyz);
+				printf(")");
+				if(j < (d - 1)) printf(",");
+			}
+			printf("]");
+		}
 	}
 };
 
