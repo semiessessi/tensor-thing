@@ -1,4 +1,4 @@
-#include "foo\tensor.h"
+#include "tensor.h"
 #include <stdio.h>
 
 int main()
