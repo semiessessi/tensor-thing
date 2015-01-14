@@ -108,7 +108,7 @@ private:
 
 	double fComposition(Vector<d> Parameter)
 	{
-		return Composition(Parameter);
+		return (this->*Composition)(Parameter);
 	}
 
 	// compositions
@@ -174,9 +174,9 @@ private:
 	}
 
 public:
-	Function<d>() : C(0.0), VF(vfNull), F(fConstant), Child1(0), Child2(0), Composition(cNull), CompositionParameter(0) {}
-	Function<d>(const double& d) : C(d), VF(vfNull), F(fConstant), Child1(0), Child2(0), Composition(cNull), CompositionParameter(0) {}
-	Function<d>(double (*f)(Vector<d> Parameter)) : C(0.0), F(fFunction), Child1(0), Child2(0), Composition(cNull), CompositionParameter(0)
+	Function<d>( ) : C( 0.0 ), VF( vfNull ), F( &Function<d>::fConstant ), Child1( 0 ), Child2( 0 ), Composition( &Function<d>::cNull ), CompositionParameter( 0 ) {}
+	Function<d>( const double& dValue ) : C( dValue ), VF( vfNull ), F( &Function<d>::fConstant ), Child1( 0 ), Child2( 0 ), Composition( &Function<d>::cNull ), CompositionParameter( 0 ) {}
+	Function<d>( double( *f )( Vector<d> Parameter ) ) : C( 0.0 ), F( &Function<d>::fFunction ), Child1( 0 ), Child2( 0 ), Composition( &Function<d>::cNull ), CompositionParameter( 0 )
 	{
 		VF = f;
 		if(VF == Vector<d>::T) VF = Vector<d>::X0;
@@ -194,7 +194,7 @@ public:
 		else Child2 = 0;
 	}
 	
-	Function<d>(const Function<d>& F1, const Function<d>& F2, double (Function<d>::*c)(Vector<d> Parameter), int i = 0) : C(0), VF(vfNull), F(fComposition), Composition(c), CompositionParameter(i)
+	Function<d>( const Function<d>& F1, const Function<d>& F2, double ( Function<d>::*c )( Vector<d> Parameter ), int i = 0 ) : C( 0 ), VF( vfNull ), F( &Function<d>::fComposition ), Composition( c ), CompositionParameter( i )
 	{
 		Child1 = new Function<d>(F1);
 		Child2 = new Function<d>(F2);
@@ -225,7 +225,7 @@ public:
 
 	double operator ()(Vector<d> Parameter)
 	{
-		return F(Parameter);
+		return (this->*F)(Parameter);
 	}
 	
 	Function<d> operator -()
@@ -240,125 +240,125 @@ public:
 
 	Function<d> operator +(const Function<d> &X) const
 	{
-		if((F == fConstant) && (X.F == fConstant))
+		if( ( F == &Function<d>::fConstant ) && ( X.F == &Function<d>::fConstant ) )
 		{
 			return C + X.C;
 		}
-		else if((F == fFunction) && (X.F == fFunction) && (VF == X.VF))
+		else if( ( F == &Function<d>::fFunction ) && ( X.F == &Function<d>::fFunction ) && ( VF == X.VF ) )
 		{
 			// X + X = 2X
 			return 2*X;
 		}
-		else if((F == fFunction) && (X.F == fComposition))
+		else if( ( F == &Function<d>::fFunction ) && ( X.F == &Function<d>::fComposition ) )
 		{
 			// aX + X = (a+1)X
-			if(X.Composition == cMul)
+			if( X.Composition == &Function<d>::cMul )
 			{
-				if((X.Child1->F == fConstant) && (X.Child2->F == fFunction) && (X.Child2->VF == VF))
+				if( ( X.Child1->F == &Function<d>::fConstant ) && ( X.Child2->F == &Function<d>::fFunction ) && ( X.Child2->VF == VF ) )
 				{
 					return (X.Child1->C + 1) * *(X.Child2);
 				}
-				else if((X.Child1->F == fFunction) && (X.Child1->VF == VF) && (X.Child2->F == fConstant))
+				else if( ( X.Child1->F == &Function<d>::fFunction ) && ( X.Child1->VF == VF ) && ( X.Child2->F == &Function<d>::fConstant ) )
 				{
 					return (X.Child2->C + 1) * *(X.Child1);
 				}
 			}
 		}
-		else if((X.F == fFunction) && (F == fComposition))
+		else if( ( X.F == &Function<d>::fFunction ) && ( F == &Function<d>::fComposition ) )
 		{
 			// Xa + X = (a+1)X
-			if(Composition == cMul)
+			if( Composition == &Function<d>::cMul )
 			{
-				if((Child1->F == fConstant) && (Child2->F == fFunction) && (Child2->VF == X.VF))
+				if( ( Child1->F == &Function<d>::fConstant ) && ( Child2->F == &Function<d>::fFunction ) && ( Child2->VF == X.VF ) )
 				{
 					return (Child1->C + 1) * *(Child2);
 				}
-				else if((Child1->F == fFunction) && (Child1->VF == X.VF) && (Child2->F == fConstant))
+				else if( ( Child1->F == &Function<d>::fFunction ) && ( Child1->VF == X.VF ) && ( Child2->F == &Function<d>::fConstant ) )
 				{
 					return (Child2->C + 1) * *(Child1);
 				}
 			}
 		}
-		else if((F == fComposition) && (X.F == fComposition))
+		else if( ( F == &Function<d>::fComposition ) && ( X.F == &Function<d>::fComposition ) )
 		{
-			if((Composition == cMul) && (X.Composition == cMul))
+			if( ( Composition == &Function<d>::cMul ) && ( X.Composition == &Function<d>::cMul ) )
 			{
-				if((Child1->F == fFunction) && (X.Child1->F == fFunction) && (Child1->VF == X.Child1->VF))
+				if( ( Child1->F == &Function<d>::fFunction ) && ( X.Child1->F == &Function<d>::fFunction ) && ( Child1->VF == X.Child1->VF ) )
 				{
 					// X*a + X*b = (a+b)*X
 					return (*(Child2) + *(X.Child2))*(*Child1);
 				}
-				else if ((Child2->F == fFunction) && (X.Child1->F == fFunction) && (Child2->VF == X.Child1->VF))
+				else if( ( Child2->F == &Function<d>::fFunction ) && ( X.Child1->F == &Function<d>::fFunction ) && ( Child2->VF == X.Child1->VF ) )
 				{
 					// a*X + X*b = (a+b)*X
 					return (*(Child1) + *(X.Child2))*(*Child2);
 				}
-				else if((Child1->F == fFunction) && (X.Child2->F == fFunction) && (Child1->VF == X.Child2->VF))
+				else if( ( Child1->F == &Function<d>::fFunction ) && ( X.Child2->F == &Function<d>::fFunction ) && ( Child1->VF == X.Child2->VF ) )
 				{
 					// X*a + b*X = (a+b)*X
 					return (*(Child2) + *(X.Child1))*(*Child1);
 				}
-				else if ((Child2->F == fFunction) && (X.Child2->F == fFunction) && (Child2->VF == X.Child2->VF))
+				else if( ( Child2->F == &Function<d>::fFunction ) && ( X.Child2->F == &Function<d>::fFunction ) && ( Child2->VF == X.Child2->VF ) )
 				{
 					// a*X + b*X = (a+b)*X
 					return (*(Child1) + *(X.Child1))*(*Child2);
 				}
 			}
 		}
-		else if (F == fConstant)
+		else if (F == &Function<d>::fConstant)
 		{
 			if(C == 0) return X; // X + 0 = X
 			if(C < 0) return X - -C; // X + -a = X - a
-			else if (X.F == fComposition)
+			else if( X.F == &Function<d>::fComposition )
 			{
-				if(X.Composition == cAdd)
+				if( X.Composition == &Function<d>::cAdd )
 				{
-					if(X.Child1->F == fConstant)
+					if( X.Child1->F == &Function<d>::fConstant )
 					{
 						return (X.Child1->C + C) + *(X.Child2);
 					}
-					else if(X.Child2->F == fConstant)
+					else if( X.Child2->F == &Function<d>::fConstant )
 					{
 						return *(X.Child1) + (X.Child2->C + C);
 					}
 				}
-				else if(X.Composition == cSub)
+				else if( X.Composition == &Function<d>::cSub )
 				{
-					if(X.Child1->F == fConstant)
+					if( X.Child1->F == &Function<d>::fConstant )
 					{
 						return (X.Child1->C + C) - *(X.Child2);
 					}
-					else if(X.Child2->F == fConstant)
+					else if( X.Child2->F == &Function<d>::fConstant )
 					{
 						return *(X.Child1) - (X.Child2->C - C);
 					}
 				}
 			}
 		}
-		else if (X.F == fConstant)
+		else if( X.F == &Function<d>::fConstant )
 		{
 			if(X.C == 0) return *this;
 			if(X.C < 0) return *this - -X.C;
-			else if (F == fComposition)
+			else if( F == &Function<d>::fComposition )
 			{
-				if(Composition == cAdd)
+				if( Composition == &Function<d>::cAdd )
 				{
-					if(Child1->F == fConstant)
+					if( Child1->F == &Function<d>::fConstant )
 					{
 						return (Child1->C + X.C) + *Child2;
 					}
-					else if(Child2->F == fConstant)
+					else if( Child2->F == &Function<d>::fConstant )
 					{
 						return *Child1 + (Child2->C + X.C);
 					}
 				}
-				else if(Composition == cSub)
+				else if( Composition == &Function<d>::cSub )
 				{
-					if(Child1->F == fConstant)
+					if( Child1->F == &Function<d>::fConstant )
 					{
 						return (Child1->C + X.C) - *Child2;
 					}
-					else if(Child2->F == fConstant)
+					else if( Child2->F == &Function<d>::fConstant )
 					{
 						return *Child1 - (Child2->C - X.C);
 					}
@@ -367,7 +367,7 @@ public:
 		}
 
 		Function<d> f = *this;
-		return Function<d>(f, X, cAdd);
+		return Function<d>( f, X, &Function<d>::cAdd );
 	}
 
 	Function<d>& operator -=(const Function<d> &X)
@@ -377,67 +377,67 @@ public:
 
 	Function<d> operator -(const Function<d> &X) const
 	{
-		if((F == fConstant) && (X.F == fConstant))
+		if( ( F == &Function<d>::fConstant ) && ( X.F == &Function<d>::fConstant ) )
 		{
 			return C - X.C;
 		}
-		else if((F == fFunction) && (X.F == fFunction) && (VF == X.VF))
+		else if( ( F == &Function<d>::fFunction ) && ( X.F == &Function<d>::fFunction ) && ( VF == X.VF ) )
 		{
 			return 0.0;
 		}
-		else if (F == fConstant)
+		else if( F == &Function<d>::fConstant )
 		{
 			if(C == 0) return X;
-			else if (X.F == fComposition)
+			else if( X.F == &Function<d>::fComposition )
 			{
-				if(X.Composition == cAdd)
+				if( X.Composition == &Function<d>::cAdd )
 				{
-					if(X.Child1->F == fConstant)
+					if( X.Child1->F == &Function<d>::fConstant )
 					{
 						return (C - X.Child1->C) - *(X.Child2);
 					}
-					else if(X.Child2->F == fConstant)
+					else if( X.Child2->F == &Function<d>::fConstant )
 					{
 						return (C - *(X.Child1)) - X.Child2->C;
 					}
 				}
-				else if(X.Composition == cSub)
+				else if( X.Composition == &Function<d>::cSub )
 				{
-					if(X.Child1->F == fConstant)
+					if( X.Child1->F == &Function<d>::fConstant )
 					{
 						return (C - X.Child1->C) + *(X.Child2);
 					}
-					else if(X.Child2->F == fConstant)
+					else if( X.Child2->F == &Function<d>::fConstant )
 					{
 						return (C - *(X.Child1)) + X.Child2->C;
 					}
 				}
 			}
 		}
-		else if (X.F == fConstant)
+		else if( X.F == &Function<d>::fConstant )
 		{
 			if(X.C == 0) return *this;
 			if(X.C < 0) return *this + -X.C;
-			else if (F == fComposition)
+			else if( F == &Function<d>::fComposition )
 			{
-				if(Composition == cAdd)
+				if( Composition == &Function<d>::cAdd )
 				{
-					if(Child1->F == fConstant)
+					if( Child1->F == &Function<d>::fConstant )
 					{
 						return (Child1->C - X.C) + *Child2;
 					}
-					else if(Child2->F == fConstant)
+					else if( Child2->F == &Function<d>::fConstant )
 					{
 						return *Child1 + (Child2->C - X.C);
 					}
 				}
-				else if(Composition == cSub)
+				else if( Composition == &Function<d>::cSub )
 				{
-					if(Child1->F == fConstant)
+					if( Child1->F == &Function<d>::fConstant )
 					{
 						return (Child1->C - X.C) - *Child2;
 					}
-					else if(Child2->F == fConstant)
+					else if( Child2->F == &Function<d>::fConstant )
 					{
 						return *Child1 - (Child2->C + X.C);
 					}
@@ -446,7 +446,7 @@ public:
 		}
 
 		Function<d> f = *this;
-		return Function<d>(f, X, cSub);
+		return Function<d>( f, X, &Function<d>::cSub );
 	}
 
 	Function<d>& operator *=(const Function<d> &X)
@@ -456,37 +456,37 @@ public:
 
 	Function<d> operator *(const Function<d> &X) const
 	{
-		if((F == fConstant) && (X.F == fConstant))
+		if( ( F == &Function<d>::fConstant ) && ( X.F == &Function<d>::fConstant ) )
 		{
 			return Function<d>(C * X.C);
 		}
-		else if (F == fConstant)
+		else if( F == &Function<d>::fConstant )
 		{
 			if(C == 0) return 0.0;
 			else if(C == 1) return X;
-			else if (X.F == fComposition)
+			else if( X.F == &Function<d>::fComposition )
 			{
-				if(X.Composition == cAdd)
+				if( X.Composition == &Function<d>::cAdd )
 				{
-					if(X.Child1->F == fConstant)
+					if( X.Child1->F == &Function<d>::fConstant )
 					{
-						return Function<d>(Function<d>(X.Child1->C * C), Function<d>(Function<d>(C), *(X.Child2), cMul), cAdd);
+						return Function<d>( Function<d>( X.Child1->C * C ), Function<d>( Function<d>( C ), *( X.Child2 ), &Function<d>::cMul ), &Function<d>::cAdd );
 					}
-					else if(X.Child2->F == fConstant)
+					else if( X.Child2->F == &Function<d>::fConstant )
 					{
-						return Function<d>(Function<d>(Function<d>(C), *(X.Child1), cMul), Function<d>(X.Child2->C * C), cAdd);
+						return Function<d>( Function<d>( Function<d>( C ), *( X.Child1 ), &Function<d>::cMul ), Function<d>( X.Child2->C * C ), &Function<d>::cAdd );
 					}
 				}
 			}
 		}
-		else if (X.F == fConstant)
+		else if( X.F == &Function<d>::fConstant )
 		{
 			if(X.C == 0) return 0.0;
 			else if(X.C == 1) return *this;
 		}
 
 		Function<d> f = *this;
-		return Function<d>(f, X, cMul);
+		return Function<d>( f, X, &Function<d>::cMul );
 	}
 
 	Function<d>& operator /=(const Function<d> &X)
@@ -496,31 +496,39 @@ public:
 
 	Function<d> operator /(const Function<d> &X) const
 	{
-		if((F == fConstant) && (X.F == fConstant))
+		if( ( F == &Function<d>::fConstant ) && ( X.F == &Function<d>::fConstant ) )
 		{
 			return Function<d>(C / X.C);
 		}
-		else if((F == fFunction) && (X.F == fFunction) && (VF == X.VF))
+		else if( ( F == &Function<d>::fFunction ) && ( X.F == &Function<d>::fFunction ) && ( VF == X.VF ) )
 		{
 			return 1.0;
 		}
-		else if (F == fConstant)
+		else if( F == &Function<d>::fConstant )
 		{
 			if(C == 0) return 0.0;
 		}
-		else if (X.F == fConstant)
+		else if( X.F == &Function<d>::fConstant )
 		{
-			if(X.C == 0) return 1.0/0.0; // we're really fucked now
-			else if(X.C == 1) return *this;
+			if( X.C == 0 )
+			{
+				// SE: we want to fuck ourselves here.
+				const unsigned int uNAN = 0x7F800000;
+				return *reinterpret_cast< const float* >( &uNAN ); // we're really fucked now
+			}
+			else if( X.C == 1 )
+			{
+				return *this;
+			}
 		}
 
 		Function<d> f = *this;
-		return Function<d>(f, X, cDiv);
+		return Function<d>( f, X, &Function<d>::cDiv );
 	}
 
 	Function<d> Derivative(const Function& wrt) const
 	{
-		if(wrt.F == fFunction)
+		if( wrt.F == &Function<d>::fFunction )
 		{
 			return Derivative(wrt.VF);
 		}
@@ -534,32 +542,32 @@ public:
 		if(wrt == Vector<d>::Z) wrt = Vector<d>::X3;
 		if(wrt == Vector<d>::W) wrt = Vector<d>::X4;
 		
-		if(F == fConstant)
+		if( F == &Function<d>::fConstant )
 		{
 			return 0.0;
 		}
-		else if(F == fFunction)
+		else if( F == &Function<d>::fFunction )
 		{
 			if(VF == wrt)
 			{
 				return 1.0;
 			}
 		}
-		else if(F == fComposition)
+		else if( F == &Function<d>::fComposition )
 		{
-			if(Composition == cAdd)
+			if( Composition == &Function<d>::cAdd )
 			{
 				return Child1->Derivative(wrt) + Child2->Derivative(wrt);
 			}
-			else if(Composition == cSub)
+			else if( Composition == &Function<d>::cSub )
 			{
 				return Child1->Derivative(wrt) - Child2->Derivative(wrt);
 			}
-			else if(Composition == cMul) // product rule
+			else if( Composition == &Function<d>::cMul ) // product rule
 			{
 				return (*Child2)*(Child1->Derivative(wrt)) + (*Child1)*(Child2->Derivative(wrt));
 			}
-			else if(Composition == cDiv) // quotient rule
+			else if( Composition == &Function<d>::cDiv ) // quotient rule
 			{
 				return ((*Child2)*(Child1->Derivative(wrt)) - (*Child1)*(Child2->Derivative(wrt)))/((*Child2)*(*Child2));
 			}
@@ -570,11 +578,11 @@ public:
 
 	void DebugPrint(bool txyz = false)
 	{
-		if(F == fConstant)
+		if( F == &Function<d>::fConstant )
 		{
 			printf("%g", C);
 		}
-		else if(F == fFunction)
+		else if( F == &Function<d>::fFunction )
 		{
 			if((VF == Vector<d>::X0) || (VF == Vector<d>::T))
 			{
@@ -617,9 +625,9 @@ public:
 				printf("x9");
 			}
 		}
-		else if(F == fComposition)
+		else if( F == &Function<d>::fComposition )
 		{
-			if(Composition == cAdd)
+			if( Composition == &Function<d>::cAdd )
 			{
 				//if(Child1->F == fComposition) printf("(");
 				Child1->DebugPrint(txyz);
@@ -629,64 +637,64 @@ public:
 				Child2->DebugPrint(txyz);
 				//if(Child2->F == fComposition) printf(")");
 			}
-			else if(Composition == cSub)
+			else if( Composition == &Function<d>::cSub )
 			{
 				//if(Child1->F == fComposition) printf("(");
 				Child1->DebugPrint(txyz);
 				//if(Child1->F == fComposition) printf(")");
 				printf("-");
-				if(Child2->F == fComposition) printf("(");
+				if( Child2->F == &Function<d>::fComposition ) printf( "(" );
 				Child2->DebugPrint(txyz);
-				if(Child2->F == fComposition) printf(")");
+				if( Child2->F == &Function<d>::fComposition ) printf( ")" );
 			}
-			else if(Composition == cMul)
+			else if( Composition == &Function<d>::cMul )
 			{
-				if(Child1->F == fConstant)
+				if( Child1->F == &Function<d>::fConstant )
 				{
 					printf("%g", Child1->C);
 				}
 				else
 				{
-					if(Child1->F == fComposition) printf("(");
+					if( Child1->F == &Function<d>::fComposition ) printf( "(" );
 					Child1->DebugPrint(txyz);
-					if(Child1->F == fComposition) printf(")");
+					if( Child1->F == &Function<d>::fComposition ) printf( ")" );
 					printf("*");
 				}
-				if(Child2->F == fComposition) printf("(");
+				if( Child2->F == &Function<d>::fComposition ) printf( "(" );
 				Child2->DebugPrint(txyz);
-				if(Child2->F == fComposition) printf(")");
+				if( Child2->F == &Function<d>::fComposition ) printf( ")" );
 			}
-			else if(Composition == cDiv)
+			else if( Composition == &Function<d>::cDiv )
 			{
-				if(Child1->F == fComposition) printf("(");
+				if( Child1->F == &Function<d>::fComposition ) printf( "(" );
 				Child1->DebugPrint(txyz);
-				if(Child1->F == fComposition) printf(")");
+				if( Child1->F == &Function<d>::fComposition ) printf( ")" );
 				printf("/");
-				if(Child2->F == fComposition) printf("(");
+				if( Child2->F == &Function<d>::fComposition ) printf( "(" );
 				Child2->DebugPrint(txyz);
-				if(Child2->F == fComposition) printf(")");
+				if( Child2->F == &Function<d>::fComposition ) printf( ")" );
 			}
 		}
 	}
 
-	friend Function<4> operator +(double d, const Function<4> f)
+	friend Function<4> operator +(double dValue, const Function<4> f)
 	{
-		return Function<4>(d) + f;
+		return Function<4>( dValue ) +f;
 	}
 
-	friend Function<4> operator -(double d, const Function<4> f)
+	friend Function<4> operator -( double dValue, const Function<4> f )
 	{
-		return Function<4>(d) - f;
+		return Function<4>( dValue ) -f;
 	}
 
-	friend Function<4> operator *(double d, const Function<4> f)
+	friend Function<4> operator *( double dValue, const Function<4> f )
 	{
-		return Function<4>(d) * f;
+		return Function<4>( dValue ) * f;
 	}
 
-	friend Function<4> operator /(double d, const Function<4> f)
+	friend Function<4> operator /( double dValue, const Function<4> f )
 	{
-		return Function<4>(d) / f;
+		return Function<4>( dValue ) / f;
 	}
 };
 
@@ -747,7 +755,7 @@ public:
             unsigned int* p = new unsigned int[D + 1];
             
             // copy from old array and add i to the end
-            for(int j = 0; j < D; ++j) p[j] = C[j];
+            for(unsigned int j = 0; j < D; ++j) p[j] = C[j];
             p[D] = i;
             
             // create return reference and delete array of indices
@@ -847,7 +855,10 @@ public:
 		for(unsigned int i = 0; i < Rank; ++i) ContravariantIndices[i] = t.ContravariantIndices[i];
 
 		Components = new Function<d>*[Size];
-		for(unsigned int i = 0; i < Size; ++i) Components[i] = new Function<d>(t.Components[i]);
+		for( unsigned int i = 0; i < Size; ++i )
+		{
+			Components[ i ] = new Function<d>( *( t.Components[ i ] ) );
+		}
 	}
 
 	~TensorField<d>()
@@ -1008,7 +1019,7 @@ public:
     {
         int j = 0;
         int k = 1;
-        for(int i = 0; i < Rank; ++i)
+        for(int i = 0; i < static_cast< int >( Rank ); ++i)
         {
             j += k*P[i];
             k *= d;
